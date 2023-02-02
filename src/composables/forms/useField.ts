@@ -7,7 +7,9 @@ export function useField(input: UseFieldInput) {
 
   let field = $ref<FormElement>()
   const value = computed(() => field?.value)
-  const { value: val, isSuccess, errorMsg } = validateField({ value, schema })
+  const blur = ref(false)
+
+  const { value: val, isSuccess, zodErrorMsg } = validateField({ value, schema })
 
   function register(el: FormElement) {
     field = el
@@ -19,18 +21,25 @@ export function useField(input: UseFieldInput) {
       field?.setFocus()
   }
 
-  const blur = ref(false)
-  const dirty = computed(() => initialValue !== field?.value || blur.value)
+  function reset() {
+    if (field?.value)
+      field.value = initialValue
+  }
+
+  const showErrorMsg = computed(() => blur.value)
+  const dirty = computed(() => initialValue !== field?.value)
+  const errorMsg = computed(() => showErrorMsg && !isSuccess ? zodErrorMsg?.value : undefined)
+
+  watch(errorMsg, () => {
+    if (field?.errorMsg)
+      field.errorMsg = errorMsg.value
+  })
 
   return {
     register,
     setFocus,
-    value,
-    isSuccess,
-    errorMsg,
     dirty,
-    blur,
-    field: $$(field),
+    reset,
   }
 }
 
@@ -43,7 +52,7 @@ interface UseFieldInput {
 
 interface FormElement {
   value: any
-  error?: boolean
+  errorMsg?: string
   setFocus?: () => void
 }
 
