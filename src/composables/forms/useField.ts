@@ -15,11 +15,12 @@ export function useField(input: UseFieldInput) {
   }
 
   function setFocus() {
-    if (field)
-      field.value?.setFocus()
+    if (field?.setFocus)
+      field?.setFocus()
   }
 
-  const dirty = computed(() => initialValue !== field?.value)
+  const blur = ref(false)
+  const dirty = computed(() => initialValue !== field?.value || blur.value)
 
   return {
     register,
@@ -28,6 +29,7 @@ export function useField(input: UseFieldInput) {
     isSuccess,
     errorMsg,
     dirty,
+    blur,
     field: $$(field),
   }
 }
