@@ -1,20 +1,41 @@
-import type { SafeParseError } from 'zod'
-import type { ValidateFieldInput } from './types'
+import type { SafeParseError, ZodTypeAny } from 'zod'
+import type { NativeFieldValue } from './../types'
+import type { UseValidatorInput } from './types'
 
-export function validateField({ value, schema }: ValidateFieldInput) {
-  const parsed = computed(() => schema ? schema.safeParse(unref(value)) : undefined)
-  const isSuccess = computed(() => parsed.value?.success ?? true)
-  const zodErrorMsg = computed(() => parsed.value && !parsed.value?.success
-    ? getErrorMsg(parsed.value)
-    : undefined)
+export function useValidator({
+  value,
+  validate,
+  callback,
+  schema,
+}: UseValidatorInput) {
+  const errorMsg = ref<string>()
+  const isSuccess = ref(false)
+
+  watchEffect(() => {
+    if (unref(validate)) {
+      const { msg, success } = callback(value, schema)
+      errorMsg.value = msg
+      isSuccess.value = success
+    }
+  })
 
   return {
-    value,
+    errorMsg,
     isSuccess,
-    zodErrorMsg,
   }
 }
 
-function getErrorMsg<T extends SafeParseError<any>>(zodOutput: T) {
+export function getErrorMsg<T extends SafeParseError<any>>(zodOutput: T) {
   return zodOutput.error.format()._errors[0]
+}
+
+export function zodValidator(value: NativeFieldValue, schema: ZodTypeAny) {
+  const parsedSchema = schema.safeParse(unref(value))
+  const isSuccess = parsedSchema.success
+  const errorMsg = isSuccess ? undefined : getErrorMsg(parsedSchema)
+
+  return {
+    msg: errorMsg,
+    success: isSuccess,
+  }
 }

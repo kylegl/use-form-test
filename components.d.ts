@@ -7,6 +7,11 @@ export {}
 
 declare module '@vue/runtime-core' {
   export interface GlobalComponents {
+    Btn: typeof import('./src/components/Btn.vue')['default']
+    Checkbox: typeof import('./src/components/forms/Checkbox.vue')['default']
+    Form: typeof import('./src/components/forms/Form.vue')['default']
+    FormField: typeof import('./src/components/forms/FormField.vue')['default']
+    Icon: typeof import('./src/components/Icon.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     TheCounter: typeof import('./src/components/TheCounter.vue')['default']

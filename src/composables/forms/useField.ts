@@ -1,77 +1,79 @@
-import type { ZodTypeAny } from 'zod'
-import type { FormCtx } from './types'
-import { validateField } from './logic/validator'
+import type { Ref } from 'vue'
+import type { ZodObject } from 'zod'
+import { useValidator } from './logic/validator'
+import type {
+  FieldCtx,
+  FieldElement,
+  RegisterInput,
+  UseFieldInput,
+} from './types'
 
-export function useField(input: UseFieldInput) {
-  const { fieldName, initialValue, ctx, schema } = input
+export function useField<TSchema extends ZodObject<any>>(input: UseFieldInput<TSchema>): FieldCtx {
+  const { defaultValue, options } = input
 
-  let field = $ref<FormElement>()
-  const value = computed(() => field?.value)
-  const blur = ref(false)
+  const { callback, schema, validate = true } = options.validation
+  const fieldValue = ref(defaultValue)
+  const fieldNode = ref<FieldElement | null >(null)
+  const { focused } = useFocus(fieldNode)
+  const isTouched = ref(false)
+  const isDirty = computed(() => defaultValue !== fieldValue.value)
 
-  const { value: val, isSuccess, zodErrorMsg } = validateField({ value, schema })
+  // TODO add option to add custom showError event
+  const showError = computed(() => isTouched.value)
 
-  function register(el: FormElement) {
-    field = el
-    return undefined
+  const { errorMsg: internalErrorMsg, isSuccess } = useValidator({
+    value: fieldValue,
+    callback,
+    schema,
+    validate,
+  })
+
+  const errorMsg = computed(() => showError.value ? internalErrorMsg.value : undefined)
+
+  const isValid = computed(() => isSuccess.value)
+
+  function register(el: RegisterInput) {
+    if (!el)
+      return
+
+    if ('input' in el && el.input) {
+      fieldNode.value = el.input
+      return
+    }
+
+    fieldNode.value = el as FieldElement
+
+    return fieldNode
   }
 
   function setFocus() {
-    if (field?.setFocus)
-      field?.setFocus()
+    focused.value = true
   }
 
   function reset() {
-    if (field?.value)
-      field.value = initialValue
+    fieldValue.value = defaultValue
+    isTouched.value = false
   }
 
-  const showErrorMsg = computed(() => blur.value)
-  const dirty = computed(() => initialValue !== field?.value)
-  const errorMsg = computed(() => showErrorMsg && !isSuccess ? zodErrorMsg?.value : undefined)
+  const cleanup = useEventListener(fieldNode, 'blur', () => isTouched.value = true)
 
-  watch(errorMsg, () => {
-    if (field?.errorMsg)
-      field.errorMsg = errorMsg.value
+  onUnmounted(() => {
+    cleanup()
+    stop()
   })
 
   return {
+    fieldValue,
+    errorMsg,
+    isDirty,
+    isTouched,
+    isValid,
     register,
-    setFocus,
-    dirty,
     reset,
+    setFocus,
   }
 }
 
-interface UseFieldInput {
-  fieldName?: string
-  initialValue?: NativeFieldValue
-  schema?: ZodTypeAny
-  ctx?: FormCtx
+export function setTouched(isTouched: Ref<boolean>) {
+  isTouched.value = true
 }
-
-interface FormElement {
-  value: any
-  errorMsg?: string
-  setFocus?: () => void
-}
-
-export type InternalFieldName = string
-
-export type FieldElement =
-  | HTMLInputElement
-  | HTMLSelectElement
-  | HTMLTextAreaElement
-
-export type FieldValue<TFieldValues extends FieldValues> =
-  TFieldValues[InternalFieldName]
-
-export type FieldValues = Record<string, any>
-
-export type NativeFieldValue =
-  | string
-  | number
-  | boolean
-  | null
-  | undefined
-  | unknown[]
