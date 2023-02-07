@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import type { FormatFn } from '~/composables/forms/types'
+import type { NativeFieldValue } from '~/composables/forms/types'
 
 const props = withDefaults(defineProps<{
-  modelValue?: string | number | boolean
+  modelValue?: NativeFieldValue
   placeholder?: string
   disabled?: boolean
   label?: string
@@ -12,28 +12,20 @@ const props = withDefaults(defineProps<{
   dirty?: boolean
   flag?: string
   attrs?: any
-  formatFn?: FormatFn
 }>(), {
   disabled: false,
   type: 'text',
 })
 
-const emit = defineEmits(['update:modelValue', 'enter', 'focus', 'blur'])
-const input = $ref<HTMLInputElement>()
-let value = $(useVModel(props, 'modelValue', emit, { passive: true }))
-const errorMsg = $(useVModel(props, 'errorMsg', emit, { passive: true }))
+const emit = defineEmits(['update:modelValue', 'update:errorMsg', 'enter', 'focus', 'blur'])
+const input = $ref<HTMLInputElement | null>(null)
 
-function setFocus() {
-  input?.focus()
-}
+const val = $(useVModel(props, 'modelValue', emit, { passive: true, deep: true }))
+const errorMsg = useVModel(props, 'errorMsg', emit, { passive: true })
 
-watchEffect(() => {
-  if (!props.formatFn)
-    return
-
-  value = props.formatFn(value)
+defineExpose({
+  input: $$(input),
 })
-defineExpose({ value: $$(value), errorMsg: $$(errorMsg), setFocus })
 </script>
 
 <template>
@@ -44,20 +36,18 @@ defineExpose({ value: $$(value), errorMsg: $$(errorMsg), setFocus })
         {{ flag }}
       </div>
     </div>
-    <div flex gap2 max-h-fit border-input in-out p2 :class="attrs">
+    <div flex gap2 max-h-fit border-input in-out p2 :class="attrs" bg-zinc-600 rounded-lg>
       <slot name="before" />
       <input
         ref="input"
-        v-model="value" w-full bg-transparent in-out placeholder:t-brand1 placeholder:text-op-40
+        v-model="val" w-full bg-transparent in-out placeholder:t-brand1 placeholder:text-op-40
         class="focus:outline-none" :placeholder="placeholder" :type="type" :disabled="disabled"
         @keydown.enter="emit('enter')" @focus="emit('focus')" @blur="emit('blur')"
       >
       <slot name="after" />
     </div>
-    <div min-h-4>
-      <div v-if="error && dirty" text-sm text-red h-4>
-        {{ errorMsg }}
-      </div>
+    <div text-sm text-red h-4>
+      {{ errorMsg }}
     </div>
   </div>
 </template>

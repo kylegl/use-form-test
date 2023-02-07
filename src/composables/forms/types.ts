@@ -1,68 +1,94 @@
 import type { ComputedRef, Ref } from 'vue'
-export interface FieldSchema {
-  id: string
-  fieldType: string
-  props: {
-    type?: string
-    label?: string
-    placeholder?: string
-    flag?: string
-    formatFn?: (input?: string) => string | undefined
-  }
-  rules?: RuleSchema[]
-  attrs?: string
-}
-export interface RuleSchema {
-  id: string
-  options?: RuleOptions
-}
-export type FormFieldComponent = Record<string, any>
+import type { ZodObject } from 'zod'
+import type { UseValidatorInput, ValidationFn } from './logic/types'
 
-export type FormCtx = Record<string, FormFieldCtx>
+export type KeyOfSchema<T extends ZodObject<any>> = T extends ZodObject<infer O> ? keyof O : never
+export type FieldData<T extends ZodObject<any>> = { [K in KeyOfSchema<T>]: FieldCtx }
 
-export interface FormFieldCtx {
-  value?: FieldValue
-  rules?: FieldRuleCtx[]
-  error?: Ref<boolean>
-  errMsg?: ComputedRef<string | undefined>
-  dirty: boolean
+export interface UseFormInput<T extends ZodObject<any, any, any>> {
+  fieldsSchema: T
+  defaultValues?: FieldValues
+  validator: ValidationFn
 }
 
-export interface FieldRuleCtx {
-  ruleId: string
-  isValid: Readonly<Ref<boolean>>
-  errMsg?: ComputedRef<string | undefined>
+export interface FormCtx<TSchema extends ZodObject<any>> {
+  isValid: ComputedRef<boolean>
+  isValidating: Ref<boolean>
+  isLoading: Ref<boolean>
+  isSubmitted: Ref<boolean>
+  isSubmitting: Ref<boolean>
+  isSubmitSuccessful: Ref<boolean>
+  submitCount: Ref<number>
+  onSubmit: OnSubmitFn
+  disabled: Ref<boolean>
+  isDirty: ComputedRef<boolean>
+  fields: FieldData<TSchema>
 }
 
-export type FieldValue = string | number | boolean | null | undefined
+export type PublicFormCtx<TSchema extends ZodObject<any>> = Pick<FormCtx<TSchema>,
+  | 'isDirty'
+  | 'onSubmit'
+  | 'disabled'
+  | 'isLoading'
+  | 'isSubmitting'
+  | 'isValid'
+> &
+FieldData<TSchema>
 
-export type RuleOptions = RequiredRuleOptions | MinRuleOptions
+export type UseFormOutput<TSchema extends ZodObject<any>> = PublicFormCtx<TSchema>
 
-export interface RuleMeta {
-  validatorFn: RuleValidatorFn
+export type OnSubmitFn = (cb: () => any) => () => any
+
+export interface UseFieldInput<TSchema extends ZodObject<any>> {
+  fieldName?: string
+  defaultValue?: NativeFieldValue
+  ctx?: FormCtx<TSchema>
+  options: UseFieldOptions
+
 }
 
-export interface RequiredRuleOptions {
-  dependsOnField: string
+export interface UseFieldOptions {
+  validation: UseValidatorInput
+}
+export interface FormElement extends Partial<HTMLDivElement> {
+  value: NativeFieldValue
+  errorMsg?: string
+  setFocus?: () => void
+  input?: FieldElement
 }
 
-export interface MinRuleOptions {
-  min: number
+export type InternalFieldName = string
+
+export type FieldElement =
+  | HTMLInputElement
+  | HTMLSelectElement
+  | HTMLTextAreaElement
+  | HTMLDivElement
+
+export type FieldValue<TFieldValues extends FieldValues> =
+  TFieldValues[InternalFieldName]
+
+export type FieldValues = Record<string, any>
+
+export type NativeFieldValue =
+  | string
+  | number
+  | boolean
+  | null
+  | undefined
+  | unknown[]
+
+export interface FieldCtx {
+  isDirty: Ref<boolean>
+  isTouched: Ref<boolean>
+  isValid: Ref<boolean>
+  register: RegisterFunction
+  reset: () => void
+  setFocus: () => void
+  fieldValue: Ref<NativeFieldValue>
+  errorMsg?: ComputedRef<string | undefined>
 }
 
-export type UseRule = (
-  fieldId: string,
-  val: Ref<FormFieldCtx['value']>,
-  ctx: Ref<FormCtx>,
-  options?: RuleOptions
-) => FieldRuleCtx
+export type RegisterInput = FormElement | FieldElement | null
 
-export type RuleValidatorFn = (val?: FieldValue, options?: { ctx?: FormCtx; ruleOptions?: RuleOptions }) => boolean
-
-export type RuleValidatorFnMap = Record<string, RuleValidatorFn>
-
-export type GetRuleErrMsgFn = (...args: any[]) => string
-
-export type OnSubmitFn = (ctx: FormCtx) => any
-
-export type FormatFn = (input?: FieldValue) => string | undefined
+export type RegisterFunction = (el: RegisterInput) => Ref<FieldElement | null> | undefined
